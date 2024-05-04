@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial System</title>
+    <link rel="stylesheet" href="/front/style.css">
+</head>
+<body>
+    <header>
+        <h1>Financial System</h1>
+    </header>
+
+    <main>
+        <section class="form-section">
+            <h2>Create Account</h2>
+            <form id="create-account-form" class="form-style">
+                <label for="name">Name:</label>
+                <input type="text" id="name" placeholder="Enter Account Name" required>
+
+                <label for="balance">Initial Balance:</label>
+                <input type="number" id="balance" placeholder="Enter Initial Balance" required>
+                
+                <button type="submit" class="btn">Create Account</button>
+            </form>
+        </section>
+
+        <section class="accounts-section">
+            <h2>Accounts</h2>
+            <div id="accounts-container"></div>
+        </section>
+
+        <section class="form-section">
+            <h2>Create Transaction</h2>
+            <form id="create-transaction-form" class="form-style">
+                <label for="account-id">Account ID:</label>
+                <input type="number" id="account-id" placeholder="Account ID" required>
+
+                <label for="value">Value:</label>
+                <input type="number" id="value" placeholder="Transaction Value" required>
+
+                <label for="group-type">Transaction Type:</label>
+                <select id="group-type">
+                    <option value="income">Income</option>
+                    <option value="outcome">Outcome</option>
+                    <option value="transfer">Transfer</option>
+                </select>
+
+                <label for="account2-id">Transfer to Account ID:</label>
+                <input type="number" id="account2-id" placeholder="Destination Account ID">
+
+                <button type="submit" class="btn">Create Transaction</button>
+            </form>
+        </section>
+    </main>
+
+    <script src="/front/script.js"></script>
+</body>
+</html>
