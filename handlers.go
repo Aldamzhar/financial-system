@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"time"
 	"github.com/gin-gonic/gin"
 	"net/http"
@@ -123,6 +124,148 @@ func createTransaction(c *gin.Context) {
 
 	c.JSON(http.StatusOK, newTransaction)
 }
+
+func updateTransaction(c *gin.Context) {
+    var updatedTransaction Transaction
+    transactionId := c.Param("id")
+    if err := c.ShouldBindJSON(&updatedTransaction); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        return
+    }
+    err := updateTransactionInDB(transactionId, updatedTransaction)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+    c.JSON(http.StatusOK, gin.H{"success": true})
+}
+
+func deleteTransaction(c *gin.Context) {
+    transactionId := c.Param("id")
+    err := deleteTransactionFromDB(transactionId)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+    c.JSON(http.StatusOK, gin.H{"success": true})
+}
+
+
+func updateTransactionInDB(transactionId string, transaction Transaction) error {
+    tx, err := db.Begin()
+    if err != nil {
+        return err
+    }
+    defer tx.Rollback()
+
+    var oldTransaction Transaction
+    err = tx.QueryRow("SELECT value, account_id, group_type, account2_id FROM transactions WHERE id = $1", transactionId).Scan(&oldTransaction.Value, &oldTransaction.AccountID, &oldTransaction.GroupType, &oldTransaction.Account2ID)
+    if err != nil {
+        return err
+    }
+
+    _, err = tx.Exec("UPDATE transactions SET value = $1, account_id = $2, group_type = $3, account2_id = $4, transaction_date = $5 WHERE id = $6",
+        transaction.Value, transaction.AccountID, transaction.GroupType, transaction.Account2ID, transaction.TransactionDate, transactionId)
+    if err != nil {
+        return err
+    }
+
+    switch oldTransaction.GroupType {
+    case "income":
+        _, err = tx.Exec("UPDATE accounts SET balance = balance - $1 WHERE id = $2", oldTransaction.Value, oldTransaction.AccountID)
+        if err != nil {
+            return err
+        }
+    case "transfer":
+        _, err = tx.Exec("UPDATE accounts SET balance = balance + $1 WHERE id = $2", oldTransaction.Value, oldTransaction.AccountID)
+        if err != nil {
+            return err
+        }
+        _, err = tx.Exec("UPDATE accounts SET balance = balance - $1 WHERE id = $2", oldTransaction.Value, oldTransaction.Account2ID)
+        if err != nil {
+            return err
+        }
+    case "outcome":
+        _, err = tx.Exec("UPDATE accounts SET balance = balance + $1 WHERE id = $2", oldTransaction.Value, oldTransaction.AccountID)
+        if err != nil {
+            return err
+        }
+    }
+
+    switch transaction.GroupType {
+    case "income":
+        _, err = tx.Exec("UPDATE accounts SET balance = balance + $1 WHERE id = $2", transaction.Value, transaction.AccountID)
+        if err != nil {
+            return err
+        }
+    case "transfer":
+        _, err = tx.Exec("UPDATE accounts SET balance = balance - $1 WHERE id = $2", transaction.Value, transaction.AccountID)
+        if err != nil {
+            return err
+        }
+        _, err = tx.Exec("UPDATE accounts SET balance = balance + $1 WHERE id = $2", transaction.Value, transaction.Account2ID)
+        if err != nil {
+            return err
+        }
+    case "outcome":
+        _, err = tx.Exec("UPDATE accounts SET balance = balance - $1 WHERE id = $2", transaction.Value, transaction.AccountID)
+        if err != nil {
+            return err
+        }
+    }
+
+    return tx.Commit()
+}
+
+
+
+
+func deleteTransactionFromDB(transactionId string) error {
+    tx, err := db.Begin()
+    if err != nil {
+        return err
+    }
+    defer tx.Rollback()
+
+    var value float64
+	var accountId int
+    var account2Id sql.NullInt64
+    var groupType string
+    err = tx.QueryRow("SELECT value, account_id, group_type, account2_id FROM transactions WHERE id = $1", transactionId).Scan(&value, &accountId, &groupType, &account2Id)
+    if err != nil {
+        return err
+    }
+
+    _, err = tx.Exec("DELETE FROM transactions WHERE id = $1", transactionId)
+    if err != nil {
+        return err
+    }
+
+    if groupType == "transfer" {
+        _, err = tx.Exec("UPDATE accounts SET balance = balance + $1 WHERE id = $2", value, accountId)
+        if err != nil {
+            return err
+        }
+
+        _, err = tx.Exec("UPDATE accounts SET balance = balance - $1 WHERE id = $2", value, account2Id)
+        if err != nil {
+            return err
+        }
+    } else if groupType == "income" {
+        _, err = tx.Exec("UPDATE accounts SET balance = balance - $1 WHERE id = $2", value, accountId)
+        if err != nil {
+            return err
+        }
+    } else if groupType == "outcome" {
+        _, err = tx.Exec("UPDATE accounts SET balance = balance + $1 WHERE id = $2", value, accountId)
+        if err != nil {
+            return err
+        }
+    }
+
+    return tx.Commit()
+}
+
 
 func getAccountTransactions(c *gin.Context) {
 	accountID := c.Param("id")

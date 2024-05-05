@@ -19,6 +19,8 @@ func main() {
 	r.POST("/accounts", createAccount)
 	r.GET("/accounts", getAllAccounts)
 	r.POST("/transactions", createTransaction)
+	r.PUT("/transactions/:id", updateTransaction)
+	r.DELETE("/transactions/:id", deleteTransaction)
 	r.GET("/accounts/:id/transactions", getAccountTransactions)
 
 	r.Run()

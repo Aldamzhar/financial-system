@@ -25,6 +25,37 @@
             </form>
         </section>
 
+        <div id="editModal" class="modal">
+            <div class="modal-content">
+            <h4>Edit Transaction</h4>
+            <form id="edit-transaction-form">
+                <input type="hidden" id="edit-transaction-id">
+        
+                <label for="edit-account-id">Account ID:</label>
+                <input type="number" id="edit-account-id" required>
+        
+                <label for="edit-value">Value:</label>
+                <input type="number" id="edit-value" required>
+        
+                <label for="edit-group-type">Transaction Type:</label>
+                <select id="edit-group-type">
+                <option value="income">Income</option>
+                <option value="outcome">Outcome</option>
+                <option value="transfer">Transfer</option>
+                </select>
+        
+                <label for="edit-account2-id">Transfer to Account ID:</label>
+                <input type="number" id="edit-account2-id">
+        
+                <button type="submit" class="btn">Update Transaction</button>
+            </form>
+            </div>
+            <div class="modal-footer">
+            <button onclick="closeModal()" class="modal-close btn">Close</button>
+            </div>
+        </div>
+  
+
         <section class="accounts-section">
             <h2>Accounts</h2>
             <div id="accounts-container"></div>

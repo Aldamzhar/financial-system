@@ -53,7 +53,7 @@ function fetchTransactions(accountId, transactionsDivId) {
         .then(transactions => {
             const transactionsDiv = document.getElementById(transactionsDivId);
             const table = document.createElement('table');
-            table.innerHTML = '<tr><th>ID</th><th>Value</th><th>Group Type</th><th>Transfer To</th><th>From</th><th>Date</th></tr>';
+            table.innerHTML = '<tr><th>ID</th><th>Value</th><th>Group Type</th><th>Transfer To</th><th>From</th><th>Date</th><th>Actions</th></tr>';
 
             transactions.forEach(tr => {
                 const row = table.insertRow();
@@ -63,10 +63,22 @@ function fetchTransactions(accountId, transactionsDivId) {
                 row.insertCell(3).innerText = tr.account2_id || 'N/A';
                 row.insertCell(4).innerText = tr.account_id; 
                 row.insertCell(5).innerText = new Date(tr.transaction_date).toLocaleString();
+
+                const actionsCell = row.insertCell(6);
+                actionsCell.appendChild(createActionButton('Edit', () => openModal(tr)));
+                actionsCell.appendChild(createActionButton('Delete', () => deleteTransaction(tr.id)));
             });
             transactionsDiv.appendChild(table);
         })
         .catch(error => console.error('Error fetching transactions for account ID ' + accountId + ':', error));
+}
+
+function createActionButton(text, onClickFunction) {
+    const button = document.createElement('button');
+    button.innerText = text;
+    button.onclick = onClickFunction;
+    button.className = 'btn small';
+    return button;
 }
 
 document.getElementById('create-transaction-form').addEventListener('submit', function(e) {
@@ -114,7 +126,7 @@ document.getElementById('create-transaction-form').addEventListener('submit', fu
     .then(data => {
         console.log(data);
         updateAccountBalances(accountId, account2Id, value, groupType);
-        addTransactionToTable(data);
+        fetchAccounts();
     })
     .catch(error => console.error('Error:', error));
 });
@@ -122,7 +134,7 @@ document.getElementById('create-transaction-form').addEventListener('submit', fu
 function createTransactionTable(container) {
     const table = document.createElement('table');
     container.appendChild(table);
-    table.innerHTML = '<tr><th>ID</th><th>Value</th><th>Group Type</th><th>Transfer To</th><th>From</th><th>Date</th></tr>';
+    table.innerHTML = '<tr><th>ID</th><th>Value</th><th>Group Type</th><th>Transfer To</th><th>From</th><th>Date</th><th>Actions</th></tr>';
     return table;
 }
 
@@ -135,11 +147,78 @@ function addTransactionToTable(transaction) {
         row.insertCell(1).innerText = transaction.value;
         row.insertCell(2).innerText = transaction.group_type;
         row.insertCell(3).innerText = transaction.account2_id || 'N/A';
-        row.insertCell(4).innerText = transaction.account_id;
+        row.insertCell(4).innerText = transaction.account_id; 
         row.insertCell(5).innerText = new Date(transaction.transaction_date).toLocaleString();
+
+        const actionsCell = row.insertCell(6);
+        actionsCell.appendChild(createActionButton('Edit', () => openModal(tr)));
+        actionsCell.appendChild(createActionButton('Delete', () => deleteTransaction(tr.id)));
     }
 }
 
+function openModal(transaction) {
+    document.getElementById('edit-transaction-id').value = transaction.id;
+    document.getElementById('edit-account-id').value = transaction.account_id;
+    document.getElementById('edit-value').value = transaction.value;
+    document.getElementById('edit-group-type').value = transaction.group_type;
+    document.getElementById('edit-account2-id').value = transaction.account2_id || '';
+
+    document.getElementById('editModal').style.display = 'block';
+}
+
+function closeModal() {
+    document.getElementById('editModal').style.display = 'none';
+}
+
+function updateTransaction() {
+    const transactionId = parseInt(document.getElementById('edit-transaction-id').value);
+    const accountId = parseInt(document.getElementById('edit-account-id').value);
+    const value = parseFloat(document.getElementById('edit-value').value);
+    const groupType = document.getElementById('edit-group-type').value;
+    const account2Id = parseInt(document.getElementById('edit-account2-id').value) || null;
+
+    const transactionDetails = {
+        account_id: accountId,
+        value: value,
+        group_type: groupType,
+        account2_id: account2Id,
+        transaction_date: new Date().toISOString()
+    };
+
+    fetch(`/transactions/${transactionId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(transactionDetails)
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Transaction updated:', data);
+        closeModal();
+        fetchAccounts();
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+document.getElementById('edit-transaction-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    updateTransaction();
+});
+
+function deleteTransaction(transactionId) {
+    if (confirm('Are you sure you want to delete this transaction?')) {
+        fetch(`/transactions/${transactionId}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Transaction deleted:', data);
+            fetchAccounts();
+        })
+        .catch(error => console.error('Error:', error));
+    }
+}
 
 function updateAccountBalances(accountId, account2Id, value, groupType) {
     adjustBalance(accountId, groupType === 'income' ? value : -value);
